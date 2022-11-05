@@ -2,6 +2,7 @@
 
 #include "DNSHandler.h"
 #include "TCPHandler.h"
+#include<string.h>
 
 extern bool filterParent;
 extern bool filterTCP;
@@ -68,6 +69,16 @@ wstring GetProcessName(DWORD id)
 	}
 
 	return name;
+}
+
+string RouteAddAddr(PIN_ADDR addr) {
+	string cmd = "ROUTE ADD ";
+	char addr_c[20];
+	cmd += inet_ntop(AF_INET, addr, addr_c, 20);
+	cmd += "\/32 10.10.10.1 METRIC 600";
+	system(cmd.c_str());
+	cout << cmd << endl;
+	return cmd;
 }
 
 bool checkBypassName(DWORD id)
@@ -188,7 +199,7 @@ void tcpConnectRequest(ENDPOINT_ID id, PNF_TCP_CONN_INFO info)
 	{
 		nf_tcpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][!filterTCP] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][!filterTCP] " << GetProcessName(info->processId) << endl;
 		return;
 	}
 
@@ -196,7 +207,7 @@ void tcpConnectRequest(ENDPOINT_ID id, PNF_TCP_CONN_INFO info)
 	{
 		nf_tcpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][checkBypassName] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][checkBypassName] " << GetProcessName(info->processId) << endl;
 		return;
 	}
 
@@ -204,15 +215,15 @@ void tcpConnectRequest(ENDPOINT_ID id, PNF_TCP_CONN_INFO info)
 	{
 		nf_tcpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][!checkHandleName] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][!checkHandleName] " << GetProcessName(info->processId) << endl;
 		return;
 	}
 
-	if (info->ip_family != AF_INET && info->ip_family != AF_INET6)
+	if (info->ip_family != AF_INET )//&& info->ip_family != AF_INET6)
 	{
 		nf_tcpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][!IPv4 && !IPv6] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "][!IPv4 && !IPv6] " << GetProcessName(info->processId) << endl;
 		return;
 	}
 
@@ -225,19 +236,23 @@ void tcpConnectRequest(ENDPOINT_ID id, PNF_TCP_CONN_INFO info)
 	if (info->ip_family == AF_INET)
 	{
 		auto addr = (PSOCKADDR_IN)info->remoteAddress;
-		addr->sin_family = AF_INET;
+		
+		RouteAddAddr(&addr->sin_addr);
+		/*addr->sin_family = AF_INET;
 		addr->sin_addr.S_un.S_addr = htonl(INADDR_LOOPBACK);
-		addr->sin_port = tcpListen;
+		addr->sin_port = tcpListen;*/
 	}
 
-	if (info->ip_family == AF_INET6)
+	/*if (info->ip_family == AF_INET6)
 	{
 		auto addr = (PSOCKADDR_IN6)info->remoteAddress;
 		IN6ADDR_SETLOOPBACK(addr);
 		addr->sin6_port = tcpListen;
-	}
+	}*/
 
-	TCPHandler::CreateHandler(client, remote);
+	//TCPHandler::CreateHandler(client, remote);
+	//wcout << "[Redirector][EventHandler][tcpConnectRequest][nf_tcpDisableFiltering]" << id <<endl;
+	nf_tcpDisableFiltering(id);
 	wcout << "[Redirector][EventHandler][tcpConnectRequest][" << id << "][" << info->processId << "] " << ConvertIP((PSOCKADDR)&client) << " -> " << ConvertIP((PSOCKADDR)&remote) << endl;
 }
 
@@ -254,7 +269,6 @@ void tcpCanSend(ENDPOINT_ID id)
 void tcpSend(ENDPOINT_ID id, const char* buffer, int length)
 {
 	UP += length;
-
 	nf_tcpPostSend(id, buffer, length);
 }
 
@@ -266,7 +280,6 @@ void tcpCanReceive(ENDPOINT_ID id)
 void tcpReceive(ENDPOINT_ID id, const char* buffer, int length)
 {
 	DL += length;
-
 	nf_tcpPostReceive(id, buffer, length);
 }
 
@@ -290,32 +303,41 @@ void udpCreated(ENDPOINT_ID id, PNF_UDP_CONN_INFO info)
 
 	if (!filterUDP)
 	{
-		if (!filterDNS) nf_udpDisableFiltering(id);
+		nf_udpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "][!filterUDP] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "][!filterUDP] " << GetProcessName(info->processId) << endl;
 		return;
 	}
 
 	if (checkBypassName(info->processId))
 	{
-		if (dnsOnly) nf_udpDisableFiltering(id);
+		nf_udpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "][checkBypassName] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "][checkBypassName] " << GetProcessName(info->processId) << endl;
 		return;
 	}
 
 	if (!checkHandleName(info->processId))
 	{
-		if (dnsOnly) nf_udpDisableFiltering(id);
+		nf_udpDisableFiltering(id);
 
-		wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "][!checkHandleName] " << GetProcessName(info->processId) << endl;
+		//wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "][!checkHandleName] " << GetProcessName(info->processId) << endl;
 		return;
 	}
+	
+	auto addr = (PSOCKADDR_IN)info->localAddress;
+	wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "] " << GetProcessName(info->processId) << inet_ntoa(addr->sin_addr)<<":" <<addr->sin_port << endl;
+	
+	ULONG addr_ul = ntohl(addr->sin_addr.S_un.S_addr);
 
-	wcout << "[Redirector][EventHandler][udpCreated][" << id << "][" << info->processId << "] " << GetProcessName(info->processId) << endl;
-
-	lock_guard<mutex> lg(udpContextLock);
-	udpContext[id] = new SocksHelper::UDP();
+	if ((ULONG)0x0a000000 < addr_ul && addr_ul < (ULONG)0x0affffff) {
+		nf_udpDisableFiltering(id);
+		cout << "[Redirector][EventHandler][nf_udpDisableFiltering][" << id << endl;
+	}
+	else {
+		lock_guard<mutex> lg(udpContextLock);
+		udpContext[id] = new SocksHelper::UDP();
+	}
 }
 
 void udpConnectRequest(ENDPOINT_ID id, PNF_UDP_CONN_REQUEST info)
@@ -337,7 +359,7 @@ void udpSend(ENDPOINT_ID id, const unsigned char* target, const char* buffer, in
 		{
 			nf_udpPostSend(id, target, buffer, length, options);
 
-			wcout << "[Redirector][EventHandler][udpSend][" << id << "] B DNS to " << ConvertIP((PSOCKADDR)target) << endl;
+			//wcout << "[Redirector][EventHandler][udpSend][" << id << "] B DNS to " << ConvertIP((PSOCKADDR)target) << endl;
 			return;
 		}
 		else
@@ -354,13 +376,17 @@ void udpSend(ENDPOINT_ID id, const unsigned char* target, const char* buffer, in
 	if (udpContext.find(id) == udpContext.end())
 	{
 		udpContextLock.unlock();
-
 		nf_udpPostSend(id, target, buffer, length, options);
 		return;
 	}
 	auto remote = udpContext[id];
 	udpContextLock.unlock();
-
+	if (!remote->routed)
+	{
+		auto addr = ((PSOCKADDR_IN)target)->sin_addr;
+		RouteAddAddr(&addr);
+		remote->routed = true;
+	}
 	if (remote->tcpSocket == INVALID_SOCKET && !remote->Associate())
 		return;
 
@@ -374,7 +400,11 @@ void udpSend(ENDPOINT_ID id, const unsigned char* target, const char* buffer, in
 
 		thread(udpReceiveHandler, id, remote, option).detach();
 	}
-
+	if (length > 1312) {
+		cout << id << "[****upd_send*****]" << length << endl;
+		return;
+	}
+		
 	if (remote->Send((PSOCKADDR_IN6)target, buffer, length) == length)
 		UP += length;
 }
@@ -391,9 +421,12 @@ void udpReceive(ENDPOINT_ID id, const unsigned char* target, const char* buffer,
 
 void udpClosed(ENDPOINT_ID id, PNF_UDP_CONN_INFO info)
 {
+	if (!filterUDP) {
+		return;
+	}
 	UNREFERENCED_PARAMETER(info);
 
-	printf("[Redirector][EventHandler][udpClosed][%llu]\n", id);
+	//printf("[Redirector][EventHandler][udpClosed][%llu]\n", id);
 
 	lock_guard<mutex> lg(udpContextLock);
 	if (udpContext.find(id) != udpContext.end())
@@ -406,7 +439,7 @@ void udpClosed(ENDPOINT_ID id, PNF_UDP_CONN_INFO info)
 
 void udpReceiveHandler(ENDPOINT_ID id, SocksHelper::PUDP remote, PNF_UDP_OPTIONS options)
 {
-	char buffer[1458];
+	char buffer[1550];
 
 	while (remote->tcpSocket != INVALID_SOCKET && remote->udpSocket != INVALID_SOCKET)
 	{
@@ -415,7 +448,10 @@ void udpReceiveHandler(ENDPOINT_ID id, SocksHelper::PUDP remote, PNF_UDP_OPTIONS
 		int length = remote->Read(&target, buffer, sizeof(buffer), NULL);
 		if (length == 0 || length == SOCKET_ERROR)
 			break;
-
+		if(length > 1312){
+			cout << id <<"[****upd_recv*****]" << length << endl;
+			continue;
+		}
 		DL += length;
 
 		nf_udpPostReceive(id, (unsigned char*)&target, buffer, length, options);

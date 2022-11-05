@@ -3,10 +3,10 @@
 bool filterLoopback = false;
 bool filterIntranet = false;
 bool filterParent = false;
-bool filterICMP = true;
+bool filterICMP = false;
 bool filterTCP = true;
 bool filterUDP = true;
-bool filterDNS = true;
+bool filterDNS = false;
 
 DWORD icmping = 0;
 

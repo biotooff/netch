@@ -37,6 +37,7 @@ namespace SocksHelper
 
 		SOCKET tcpSocket = INVALID_SOCKET;
 		SOCKET udpSocket = INVALID_SOCKET;
+		bool routed = false;
 
 		SOCKADDR_IN6 address = { 0 };
 	} *PUDP;

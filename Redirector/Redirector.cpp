@@ -89,19 +89,20 @@ extern "C" {
 
 	__declspec(dllexport) BOOL __cdecl aio_dial(int name, LPWSTR value)
 	{
+		wcout << name << value << endl;
 		switch (name)
 		{
 		case AIO_FILTERLOOPBACK:
-			filterLoopback = (wstring(value).find(L"false") == string::npos);
+			//filterLoopback = (wstring(value).find(L"false") == string::npos);
 			break;
 		case AIO_FILTERINTRANET:
-			filterIntranet = (wstring(value).find(L"false") == string::npos);
+			//filterIntranet = (wstring(value).find(L"false") == string::npos);
 			break;
 		case AIO_FILTERPARENT:
-			filterParent = (wstring(value).find(L"false") == string::npos);
+			//filterParent = (wstring(value).find(L"false") == string::npos);
 			break;
-		case AIO_FILTERICMP:
-			filterICMP = (wstring(value).find(L"false") == string::npos);
+		case AIO_FILTERICMP:	
+			//filterICMP = (wstring(value).find(L"false") == string::npos);
 			break;
 		case AIO_FILTERTCP:
 			filterTCP = (wstring(value).find(L"false") == string::npos);
@@ -110,17 +111,17 @@ extern "C" {
 			filterUDP = (wstring(value).find(L"false") == string::npos);
 			break;
 		case AIO_FILTERDNS:
-			filterDNS = (wstring(value).find(L"false") == string::npos);
+			//filterDNS = (wstring(value).find(L"false") == string::npos);
 			break;
 		case AIO_ICMPING:
 			icmping = atoi(ws2s(value).c_str());
 			break;
-		case AIO_DNSONLY:
+		/*case AIO_DNSONLY:
 			dnsOnly = (wstring(value).find(L"false") == string::npos);
 			break;
 		case AIO_DNSPROX:
 			dnsProx = (wstring(value).find(L"false") == string::npos);
-			break;
+			break;*/
 		case AIO_DNSHOST:
 			dnsHost = ws2s(value);
 			break;
@@ -142,6 +143,7 @@ extern "C" {
 		case AIO_CLRNAME:
 			bypassList.clear();
 			handleList.clear();
+			wcout << name <<"[CLEAR]"<< value << endl;
 			break;
 		case AIO_BYPNAME:
 			try
@@ -151,7 +153,7 @@ extern "C" {
 			catch (regex_error) {
 				return FALSE;
 			}
-
+			wcout << name <<"[BYPASS]"<< value << endl;
 			bypassList.emplace_back(value);
 			break;
 		case AIO_ADDNAME:
@@ -163,6 +165,7 @@ extern "C" {
 				return FALSE;
 			}
 
+			wcout << name << "[LIST]" << value << endl;
 			handleList.emplace_back(value);
 			break;
 		default:
@@ -197,6 +200,7 @@ extern "C" {
 		NF_RULE rule;
 		if (!filterLoopback)
 		{
+			/*127.0.0.0/8 用于到本地主机的环回地址*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "127.0.0.1", rule.remoteIpAddress);
@@ -204,17 +208,17 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			memset(&rule, 0, sizeof(NF_RULE));
+			/*memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET6;
 			rule.remoteIpAddress[15] = 1;
 			memset(rule.remoteIpAddressMask, 0xff, sizeof(rule.remoteIpAddressMask));
 			rule.filteringFlag = NF_ALLOW;
-			nf_addRule(&rule, FALSE);
+			nf_addRule(&rule, FALSE);*/
 		}
 
 		if (!filterIntranet)
 		{
-			/* 10.0.0.0/8 */
+			/* 10.0.0.0/8 A*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "10.0.0.0", rule.remoteIpAddress);
@@ -222,7 +226,7 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			/* 100.64.0.0/10 */
+			/* 100.64.0.0/10 用于在电信级NAT环境中服务提供商与其用户通信*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "100.64.0.0", rule.remoteIpAddress);
@@ -230,7 +234,7 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			/* 169.254.0.0/16 */
+			/* 169.254.0.0/16 B类地址。当系统使用dhcp方式获取ip地址，但又无法真正获取到地址时，随机使用这个段*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "169.254.0.0", rule.remoteIpAddress);
@@ -238,7 +242,7 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			/* 172.16.0.0/12 */
+			/* 172.16.0.0/12 B*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "100.64.0.0", rule.remoteIpAddress);
@@ -246,7 +250,7 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			/* 192.0.0.0/24 */
+			/* 192.0.0.0/24 内部网络.用于IANA的IPv4特殊用途地址表*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "192.0.0.0", rule.remoteIpAddress);
@@ -254,7 +258,7 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			/* 192.168.0.0/16 */
+			/* 192.168.0.0/16 C*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "192.168.0.0", rule.remoteIpAddress);
@@ -262,11 +266,35 @@ extern "C" {
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 
-			/* 198.18.0.0/15 */
+			/* 198.18.0.0/15 内部网络.用于测试两个不同的子网的网间通信*/
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			inet_pton(AF_INET, "198.18.0.0", rule.remoteIpAddress);
 			inet_pton(AF_INET, "255.254.0.0", rule.remoteIpAddressMask);
+			rule.filteringFlag = NF_ALLOW;
+			nf_addRule(&rule, FALSE);
+
+			/* 224.0.0.0/4  用于多播。（以前的D类IP地址网络）*/
+			memset(&rule, 0, sizeof(NF_RULE));
+			rule.ip_family = AF_INET;
+			inet_pton(AF_INET, "224.0.0.0", rule.remoteIpAddress);
+			inet_pton(AF_INET, "240.0.0.0", rule.remoteIpAddressMask);
+			rule.filteringFlag = NF_ALLOW;
+			nf_addRule(&rule, FALSE);
+
+			/* 240.0.0.0/4  用于将来使用。（以前的E类IP地址网络）*/
+			memset(&rule, 0, sizeof(NF_RULE));
+			rule.ip_family = AF_INET;
+			inet_pton(AF_INET, "240.0.0.0", rule.remoteIpAddress);
+			inet_pton(AF_INET, "240.0.0.0", rule.remoteIpAddressMask);
+			rule.filteringFlag = NF_ALLOW;
+			nf_addRule(&rule, FALSE);
+
+			/* 255.255.255.255/32  用于受限广播地址*/
+			memset(&rule, 0, sizeof(NF_RULE));
+			rule.ip_family = AF_INET;
+			inet_pton(AF_INET, "255.255.255.255", rule.remoteIpAddress);
+			inet_pton(AF_INET, "255.255.255.255", rule.remoteIpAddressMask);
 			rule.filteringFlag = NF_ALLOW;
 			nf_addRule(&rule, FALSE);
 		}
@@ -292,27 +320,31 @@ extern "C" {
 			rule.filteringFlag = NF_INDICATE_CONNECT_REQUESTS;
 			nf_addRule(&rule, FALSE);
 
-			memset(&rule, 0, sizeof(NF_RULE));
+			/*memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET6;
 			rule.protocol = IPPROTO_TCP;
 			rule.direction = NF_D_OUT;
 			rule.filteringFlag = NF_INDICATE_CONNECT_REQUESTS;
-			nf_addRule(&rule, FALSE);
+			nf_addRule(&rule, FALSE);*/
 		}
 
-		if (filterUDP || filterDNS)
+		if (filterUDP )//|| filterDNS)
 		{
+			//出站UDP并且源ip属于 192.168.0.0/24
 			memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET;
 			rule.protocol = IPPROTO_UDP;
+			rule.direction = NF_D_OUT;
+			inet_pton(AF_INET, "192.168.0.0", rule.localIpAddress);
+			inet_pton(AF_INET, "255.255.0.0", rule.localIpAddressMask);
 			rule.filteringFlag = NF_FILTER;
 			nf_addRule(&rule, FALSE);
 
-			memset(&rule, 0, sizeof(NF_RULE));
+			/*memset(&rule, 0, sizeof(NF_RULE));
 			rule.ip_family = AF_INET6;
 			rule.protocol = IPPROTO_UDP;
 			rule.filteringFlag = NF_FILTER;
-			nf_addRule(&rule, FALSE);
+			nf_addRule(&rule, FALSE);*/
 		}
 
 		return TRUE;
