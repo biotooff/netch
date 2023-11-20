@@ -11,6 +11,9 @@ extern bool filterDNS;
 
 extern bool dnsOnly;
 
+extern wstring tgtHost;
+string strHost=    "";
+
 extern vector<wstring> bypassList;
 extern vector<wstring> handleList;
 
@@ -71,11 +74,42 @@ wstring GetProcessName(DWORD id)
 	return name;
 }
 
+//wstring类型转换为string类型
+std::string GetStringByWchar(const WCHAR* wszString)
+{
+	std::string strString;
+	if (wszString != NULL)
+	{
+		std::wstring ws(wszString);
+		strString.assign(ws.begin(), ws.end());
+	}
+
+	return strString;
+}
+
+//string类型转换为wstring类型
+std::wstring GetWStringByChar(const char* szString)
+{
+	std::wstring wstrString;
+	if (szString != NULL)
+	{
+		std::string str(szString);
+		wstrString.assign(str.begin(), str.end());
+	}
+
+	return wstrString;
+}
+
 string RouteAddAddr(PIN_ADDR addr) {
+	if (strHost.empty()) {
+		strHost = GetStringByWchar(tgtHost.c_str());
+	}
 	string cmd = "ROUTE ADD ";
 	char addr_c[20];
 	cmd += inet_ntop(AF_INET, addr, addr_c, 20);
-	cmd += "\/32 10.10.10.1 METRIC 600";
+	cmd += "\/24 ";
+	cmd += strHost;
+	cmd+=" METRIC 600";
 	system(cmd.c_str());
 	cout << cmd << endl;
 	return cmd;
@@ -330,7 +364,12 @@ void udpCreated(ENDPOINT_ID id, PNF_UDP_CONN_INFO info)
 	
 	ULONG addr_ul = ntohl(addr->sin_addr.S_un.S_addr);
 
-	if ((ULONG)0x0a000000 < addr_ul && addr_ul < (ULONG)0x0affffff) {
+	if (
+			( (ULONG)0x0a000000 < addr_ul && addr_ul < (ULONG)0x0affffff )
+			||
+			( (ULONG)0xAC100000 < addr_ul && addr_ul < (ULONG)0xAC1FFFFF )
+		)
+	{
 		nf_udpDisableFiltering(id);
 		cout << "[Redirector][EventHandler][nf_udpDisableFiltering][" << id << endl;
 	}
@@ -386,9 +425,17 @@ void udpSend(ENDPOINT_ID id, const unsigned char* target, const char* buffer, in
 		auto addr = ((PSOCKADDR_IN)target)->sin_addr;
 		RouteAddAddr(&addr);
 		remote->routed = true;
+		//20230129
+		nf_udpPostSend(id, target, buffer, length, options);
+		return;
 	}
 	if (remote->tcpSocket == INVALID_SOCKET && !remote->Associate())
+	{
+		
+		nf_udpPostSend(id, target, buffer, length, options);
+		nf_udpDisableFiltering(id);
 		return;
+	}
 
 	if (remote->udpSocket == INVALID_SOCKET)
 	{
@@ -401,8 +448,8 @@ void udpSend(ENDPOINT_ID id, const unsigned char* target, const char* buffer, in
 		thread(udpReceiveHandler, id, remote, option).detach();
 	}
 	if (length > 1312) {
-		cout << id << "[****upd_send*****]" << length << endl;
-		return;
+		cout << id << "[****@@@ upd_send @@@*****]" << length << endl;
+		//return;
 	}
 		
 	if (remote->Send((PSOCKADDR_IN6)target, buffer, length) == length)
@@ -439,7 +486,7 @@ void udpClosed(ENDPOINT_ID id, PNF_UDP_CONN_INFO info)
 
 void udpReceiveHandler(ENDPOINT_ID id, SocksHelper::PUDP remote, PNF_UDP_OPTIONS options)
 {
-	char buffer[1550];
+	char buffer[3000];
 
 	while (remote->tcpSocket != INVALID_SOCKET && remote->udpSocket != INVALID_SOCKET)
 	{
@@ -449,8 +496,8 @@ void udpReceiveHandler(ENDPOINT_ID id, SocksHelper::PUDP remote, PNF_UDP_OPTIONS
 		if (length == 0 || length == SOCKET_ERROR)
 			break;
 		if(length > 1312){
-			cout << id <<"[****upd_recv*****]" << length << endl;
-			continue;
+			cout << id <<"[****@@@ upd_recv @@@*****]" << length << endl;
+			//continue;
 		}
 		DL += length;
 
